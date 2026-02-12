@@ -12,8 +12,19 @@ line-length = 99
 
 [tool.ruff.lint]
 select = ["ALL"]
-ignore = ["D100", "D103", "D104", "D105", "ERA001", "D107", "T201"]
+ignore = [
+    "D100",
+    "D101",
+    "D102",
+    "D103",
+    "D104",
+    "D105",
+    "D107",
+    "ERA001",
+    "INP001",
+    "T201",
+]
 unfixable = ["F401"]
 
 [tool.uv.workspace]
-members = []
+members = ["threading-tutorial"]
