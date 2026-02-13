@@ -40,3 +40,23 @@ def background_task():
 daemon_thread = threading.Thread(target=background_task, daemon=True)
 daemon_thread.start()
 ```
+
+---
+
+## Docker to Run PostgreSQL
+
+---
+
+- Use `docker-compose` to manage the PostgreSQL container
+
+```sh
+docker compose -f compose.yaml up -d --build
+```
+
+Command to stop the container:
+
+```sh
+docker compose -f compose.yaml down
+```
+
+`-d` flag runs the container in detached mode, allowing you to continue using the terminal for other commands while the container is running. The `--build` flag forces a rebuild of the Docker image, ensuring that any changes to the Dockerfile or dependencies are included in the new image.
