@@ -4,7 +4,12 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "beautifulsoup4>=4.14.3",
+    "lxml>=6.0.2",
+    "requests>=2.32.5",
+]
+
 
 
 [tool.ruff]
@@ -22,9 +27,23 @@ ignore = [
     "D107",
     "ERA001",
     "INP001",
+    "S101",
+    "S311",
     "T201",
 ]
 unfixable = ["F401"]
 
 [tool.uv.workspace]
-members = ["threading-tutorial"]
+members = [
+    "threading-tutorial",
+    "cur_price_tracker",
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.19.1",
+]
+typing = [
+    "lxml-stubs>=0.5.1",
+    "types-requests>=2.32.4.20260107",
+]
