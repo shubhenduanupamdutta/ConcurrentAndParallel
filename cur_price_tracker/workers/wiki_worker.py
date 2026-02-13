@@ -10,7 +10,10 @@ class WikiWorker:
         self._url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
 
     def get_sp_500_companies(self) -> Generator[str]:
-        response = requests.get(self._url, timeout=120)
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",  # noqa: E501
+        }
+        response = requests.get(self._url, headers=headers, timeout=120)
         response.raise_for_status()
 
         yield from self._extract_companies_from_wiki_page(response.text)
