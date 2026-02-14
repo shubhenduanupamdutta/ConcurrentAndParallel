@@ -4,12 +4,9 @@ from queue import Empty
 from threading import Thread
 from typing import Any, override
 
-from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 
 from .queue_types import PostgresQueue
-
-load_dotenv()
 
 
 class PostgresMasterScheduler(Thread):
