@@ -1,50 +1,50 @@
 import time
-from multiprocessing import Queue
-from typing import TYPE_CHECKING
+from pathlib import Path
 
-from workers.nyse_finance_worker import NYSEFinancePriceScheduler
-from workers.postgres_worker import PostgresMasterScheduler
 from workers.wiki_worker import WikiWorker
-
-if TYPE_CHECKING:
-    import threading
-
-    from workers.queue_types import PostgresQueue, SymbolQueue
+from yaml_reader import YamlPipelineExecutor
 
 
 def main() -> None:
-    symbol_queue: SymbolQueue = Queue()
-    postgres_queue: PostgresQueue = Queue()
+    current_file_location = Path(__file__).parent
+    pipeline_location = current_file_location / "pipelines" / "wiki_nyse_scraper_pipeline.yaml"
+    yaml_pipeline_executor = YamlPipelineExecutor(pipeline_location)
+    yaml_pipeline_executor.process_pipeline()
+    # symbol_queue: SymbolQueue = Queue()
+    # postgres_queue: PostgresQueue = Queue()
     scraper_start_time = time.perf_counter()
 
     wiki_scraper = WikiWorker()
-    nyse_finance_scheduler_threads: list[threading.Thread] = []
+    # nyse_finance_scheduler_threads: list[threading.Thread] = []
 
-    number_of_nyse_finance_workers = 10
+    # number_of_nyse_finance_workers = 10
 
-    for _ in range(number_of_nyse_finance_workers):
-        nyse_finance_scheduler = NYSEFinancePriceScheduler(symbol_queue, [postgres_queue])
-        nyse_finance_scheduler_threads.append(nyse_finance_scheduler)
+    # for _ in range(number_of_nyse_finance_workers):
+    #     nyse_finance_scheduler = NYSEFinancePriceScheduler(symbol_queue, [postgres_queue])
+    #     nyse_finance_scheduler_threads.append(nyse_finance_scheduler)
 
-    postgres_scheduler_threads: list[threading.Thread] = []
-    number_of_postgres_workers = 2
-    for _ in range(number_of_postgres_workers):
-        postgres_scheduler = PostgresMasterScheduler(postgres_queue)
-        postgres_scheduler_threads.append(postgres_scheduler)
+    # postgres_scheduler_threads: list[threading.Thread] = []
+    # number_of_postgres_workers = 2
+    # for _ in range(number_of_postgres_workers):
+    #     postgres_scheduler = PostgresMasterScheduler(postgres_queue)
+    #     postgres_scheduler_threads.append(postgres_scheduler)
 
     for i, symbol in enumerate(wiki_scraper.get_sp_500_companies()):
-        symbol_queue.put(symbol)
+        yaml_pipeline_executor._queues["SymbolQueue"].put(symbol)  # noqa: SLF001
         if i > 10:  # noqa: PLR2004
             break
 
-    for _ in range(len(nyse_finance_scheduler_threads)):
-        symbol_queue.put("DONE")
+    for _ in range(20):
+        yaml_pipeline_executor._queues["SymbolQueue"].put("DONE")  # noqa: SLF001
 
-    for thread in nyse_finance_scheduler_threads:
+    nyse_finance_workers = yaml_pipeline_executor._workers.get("NYSEFinanceWorker", [])  # noqa: SLF001
+    for thread in nyse_finance_workers:
         thread.join()
 
-    for _ in range(len(postgres_scheduler_threads)):
-        postgres_queue.put("DONE")
+    for _ in range(20):
+        yaml_pipeline_executor._queues["PostgresQueue"].put("DONE")  # noqa: SLF001
+
+    postgres_scheduler_threads = yaml_pipeline_executor._workers.get("PostgresWorker", [])  # noqa: SLF001
     for thread in postgres_scheduler_threads:
         thread.join()
 
