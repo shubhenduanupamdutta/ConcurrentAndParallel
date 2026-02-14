@@ -6,14 +6,15 @@ queues:
     description: Contains the scraped price data to be stored in Postgres database.
 
 workers:
-  # - name: WikiWorker
-  #   description: Scrapes the list of symbols from Wikipedia and puts them in SymbolQueue.
-  #   location: workers.wiki_worker
-  #   class: WikiWorker
-  #   input_values:
-  #     - "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
-  #   output_queues:
-  #     - SymbolQueue
+  - name: WikiWorker
+    description: Scrapes the list of symbols from Wikipedia and puts them in SymbolQueue.
+    location: workers.wiki_worker
+    class: WikiWorkerMasterScheduler
+    instances: 1 # Don't change this otherwise duplicate entries will be added to SymbolQueue
+    input_values:
+      - "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
+    output_queues:
+      - SymbolQueue
 
   - name: NYSEFinanceWorker
     description: Pulls price data from specific symbol page on NYSE Finance

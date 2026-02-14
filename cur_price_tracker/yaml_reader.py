@@ -44,6 +44,10 @@ class YamlPipelineExecutor:
             if output_queues:
                 init_params["output_queues"] = [self._queues[oq] for oq in output_queues]
 
+            input_values = worker.get("input_values", [])
+            if input_values:
+                init_params["input_values"] = input_values
+
             self._workers[worker_name] = [worker_class(**init_params) for i in range(num_instance)]  # type: ignore[arg-type]
 
     def _join_workers(self) -> None:

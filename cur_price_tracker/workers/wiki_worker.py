@@ -1,13 +1,42 @@
 from collections.abc import Generator
-from typing import cast
+from threading import Thread
+from typing import Any, cast, override
 
 import requests
 from bs4 import BeautifulSoup
 
+from .queue_types import SymbolQueue
+
+
+class WikiWorkerMasterScheduler(Thread):
+    def __init__(self, output_queues: list[SymbolQueue] | SymbolQueue, **kwargs: Any) -> None:  # noqa: ANN401
+        if "input_queue" in kwargs:
+            kwargs.pop("input_queue")
+
+        self._input_values = kwargs.pop("input_values", [])
+        super().__init__(**kwargs)
+        self._output_queues = output_queues if isinstance(output_queues, list) else [output_queues]
+        self.start()
+
+    @override
+    def run(self) -> None:
+        for entry in self._input_values:
+            wiki_worker = WikiWorker(entry)
+
+            for i, symbol in enumerate(wiki_worker.get_sp_500_companies()):
+                for output_queue in self._output_queues:
+                    output_queue.put(symbol)
+                if i >= 10:  # noqa: PLR2004
+                    break
+
+        for output_queue in self._output_queues:
+            for _ in range(20):
+                output_queue.put("DONE")
+
 
 class WikiWorker:
-    def __init__(self) -> None:
-        self._url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
+    def __init__(self, url: str) -> None:
+        self._url = url
 
     def get_sp_500_companies(self) -> Generator[str]:
         headers = {
