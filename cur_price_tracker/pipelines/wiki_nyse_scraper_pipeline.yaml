@@ -1,0 +1,32 @@
+queues:
+  - name: SymbolQueue
+    description: Contains symbol to be scraped from NYSE Finance website.
+
+  - name: PostgresQueue
+    description: Contains the scraped price data to be stored in Postgres database.
+
+workers:
+  # - name: WikiWorker
+  #   description: Scrapes the list of symbols from Wikipedia and puts them in SymbolQueue.
+  #   location: workers.wiki_worker
+  #   class: WikiWorker
+  #   input_values:
+  #     - "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
+  #   output_queues:
+  #     - SymbolQueue
+
+  - name: NYSEFinanceWorker
+    description: Pulls price data from specific symbol page on NYSE Finance
+    location: workers.nyse_finance_worker
+    class: NYSEFinancePriceScheduler
+    instances: 4
+    input_queue: SymbolQueue
+    output_queues:
+      - PostgresQueue
+
+  - name: PostgresWorker
+    description: Pulls price data from PostgresQueue and stores it in Postgres database.
+    location: workers.postgres_worker
+    class: PostgresMasterScheduler
+    instances: 2
+    input_queue: PostgresQueue
