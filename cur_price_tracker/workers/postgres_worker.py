@@ -1,20 +1,19 @@
 import os
 from datetime import datetime
-from multiprocessing import Queue
+from multiprocessing.queues import Queue as QueueType
 from threading import Thread
 from typing import Any, override
 
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 
+from .queue_types import PostgresQueueItem
+
 load_dotenv()
 
 
-type PostgresQueueItem = tuple[str, float | None, datetime]
-
-
 class PostgresMasterScheduler(Thread):
-    def __init__(self, input_queue: Queue[PostgresQueueItem], **kwargs: Any) -> None:  # noqa: ANN401
+    def __init__(self, input_queue: QueueType[PostgresQueueItem], **kwargs: Any) -> None:  # noqa: ANN401
         super().__init__(**kwargs)
         self._input_queue = input_queue
         self.start()
@@ -23,7 +22,7 @@ class PostgresMasterScheduler(Thread):
     def run(self) -> None:
         while True:
             val = self._input_queue.get()
-            if val == "DONE":
+            if val[0] == "DONE":
                 print("Received DONE signal. Exiting PostgresMasterScheduler.")
                 break
             symbol, price, extracted_time = val
@@ -43,7 +42,7 @@ class PostgresWorker:
         self.pg_port = os.getenv("PG_PORT", "5432")
         self.pg_db = os.getenv("PG_DB")
         self.engine = create_engine(
-            f"postgresql://{self.pg_user}:{self.pg_password}@{self.pg_host}:{self.pg_port}/{self.pg_db}",
+            f"postgresql+psycopg://{self.pg_user}:{self.pg_password}@{self.pg_host}:{self.pg_port}/{self.pg_db}",
         )
 
     def _create_insert_query(self) -> str:
@@ -63,3 +62,4 @@ class PostgresWorker:
                     "extracted_time": self._extracted_time,
                 },
             )
+            connection.commit()

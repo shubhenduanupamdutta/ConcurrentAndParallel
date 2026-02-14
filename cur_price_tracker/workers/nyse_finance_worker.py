@@ -1,5 +1,6 @@
 import random
-from multiprocessing import Queue
+from datetime import UTC, datetime
+from multiprocessing.queues import Queue as QueueType
 from threading import Thread
 from typing import Any, override
 
@@ -7,11 +8,19 @@ from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.common.by import By
 
+from .queue_types import PostgresQueueItem
+
 
 class NYSEFinancePriceScheduler(Thread):
-    def __init__(self, input_queue: Queue, **kwargs: Any) -> None:  # noqa: ANN401
+    def __init__(
+        self,
+        input_queue: QueueType[str],
+        output_queue: QueueType[PostgresQueueItem],
+        **kwargs: Any,  # noqa: ANN401
+    ) -> None:
         super().__init__(**kwargs)
         self._input_queue = input_queue
+        self._output_queue = output_queue
         self.start()
 
     @override
@@ -23,6 +32,7 @@ class NYSEFinancePriceScheduler(Thread):
                 break
             finance_worker = NYSEFinanceWorker(symbol)
             price = finance_worker.get_price()
+            self._output_queue.put((symbol, price, datetime.now(UTC)))
             print(f"{symbol}: {price}")
 
 
