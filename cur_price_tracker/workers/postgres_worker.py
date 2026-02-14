@@ -1,19 +1,19 @@
 import os
 from datetime import datetime
-from multiprocessing.queues import Queue as QueueType
+from queue import Empty
 from threading import Thread
 from typing import Any, override
 
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 
-from .queue_types import PostgresQueueItem
+from .queue_types import PostgresQueue
 
 load_dotenv()
 
 
 class PostgresMasterScheduler(Thread):
-    def __init__(self, input_queue: QueueType[PostgresQueueItem], **kwargs: Any) -> None:  # noqa: ANN401
+    def __init__(self, input_queue: PostgresQueue, **kwargs: Any) -> None:  # noqa: ANN401
         super().__init__(**kwargs)
         self._input_queue = input_queue
         self.start()
@@ -21,8 +21,13 @@ class PostgresMasterScheduler(Thread):
     @override
     def run(self) -> None:
         while True:
-            val = self._input_queue.get()
-            if val[0] == "DONE":
+            try:
+                val = self._input_queue.get(timeout=120)
+            except Empty:
+                print("Timeout while waiting for data. Exiting PostgresMasterScheduler.")
+                break
+
+            if val == "DONE":
                 print("Received DONE signal. Exiting PostgresMasterScheduler.")
                 break
             symbol, price, extracted_time = val

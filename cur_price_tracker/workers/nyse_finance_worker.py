@@ -1,6 +1,6 @@
 import random
 from datetime import UTC, datetime
-from multiprocessing.queues import Queue as QueueType
+from queue import Empty
 from threading import Thread
 from typing import Any, override
 
@@ -8,31 +8,37 @@ from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.common.by import By
 
-from .queue_types import PostgresQueueItem
+from .queue_types import PostgresQueue, SymbolQueue
 
 
 class NYSEFinancePriceScheduler(Thread):
     def __init__(
         self,
-        input_queue: QueueType[str],
-        output_queue: QueueType[PostgresQueueItem],
+        input_queue: SymbolQueue,
+        output_queues: list[PostgresQueue] | PostgresQueue,
         **kwargs: Any,  # noqa: ANN401
     ) -> None:
         super().__init__(**kwargs)
         self._input_queue = input_queue
-        self._output_queue = output_queue
+        self._output_queues = output_queues if isinstance(output_queues, list) else [output_queues]
         self.start()
 
     @override
     def run(self) -> None:
         while True:
-            symbol = self._input_queue.get()
+            try:
+                symbol = self._input_queue.get(timeout=120)
+            except Empty:
+                print("Timeout while waiting for data. Exiting NYSEFinancePriceScheduler.")
+                break
+
             if symbol == "DONE":
                 print("Received DONE signal. Exiting NYSEFinancePriceScheduler.")
                 break
             finance_worker = NYSEFinanceWorker(symbol)
             price = finance_worker.get_price()
-            self._output_queue.put((symbol, price, datetime.now(UTC)))
+            for output_queue in self._output_queues:
+                output_queue.put((symbol, price, datetime.now(tz=UTC)))
             print(f"{symbol}: {price}")
 
 
