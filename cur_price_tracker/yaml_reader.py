@@ -1,22 +1,25 @@
 import importlib
+import time
 from multiprocessing import Queue
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from threading import Thread
+from typing import TYPE_CHECKING, Any, override
 
 import yaml
 
 if TYPE_CHECKING:
-    from threading import Thread
-
     from cur_price_tracker.workers.queue_types import QueueType
 
 
-class YamlPipelineExecutor:
+class YamlPipelineExecutor(Thread):
     def __init__(self, pipeline_location: str | Path) -> None:
+        super().__init__()
         self._pipeline_location = Path(pipeline_location)
         self._yaml_data: dict[str, Any] = {}
         self._queues: dict[str, QueueType[Any]] = {}
         self._workers: dict[str, list[Thread]] = {}
+        self._queue_consumers: dict[str, int] = {}
+        self._downstream_queues: dict[str, list[str]] = {}
 
     def _load_pipeline(self) -> None:
         with self._pipeline_location.open(mode="r", encoding="utf-8") as f:
@@ -37,6 +40,10 @@ class YamlPipelineExecutor:
             output_queues = worker.get("output_queues", [])
             worker_name = worker["name"]
             num_instance = worker.get("instances", 1)
+
+            self._downstream_queues[worker_name] = output_queues
+            if input_queue:
+                self._queue_consumers[input_queue] = num_instance
 
             init_params: dict[str, Any] = {
                 "input_queue": self._queues[input_queue] if input_queue else None,
@@ -60,3 +67,45 @@ class YamlPipelineExecutor:
         self._initialize_queues()
         self._initialize_workers()
         # self._join_workers()
+
+    @override
+    def run(self) -> None:  # noqa: C901
+        self.process_pipeline()
+        while True:
+            total_workers_alive = 0
+            # Monitoring
+            worker_stats = []
+            to_del = []
+            for worker_name, workers in self._workers.items():
+                total_worker_threads_alive = 0
+                for worker_thread in workers:
+                    if worker_thread.is_alive():
+                        total_worker_threads_alive += 1
+                total_workers_alive += total_worker_threads_alive
+                # When all threads of a worker have finished their execution, we can send "DONE"
+                # signal to downstream queues and remove the worker from the active workers list.
+                if total_worker_threads_alive == 0:
+                    downstream_queues = self._downstream_queues.get(worker_name, [])
+                    for output_queue in downstream_queues:
+                        number_of_consumers = self._queue_consumers.get(output_queue, 0)
+                        for _ in range(number_of_consumers):
+                            self._queues[output_queue].put("DONE")
+
+                    to_del.append(worker_name)
+
+                worker_stats.append((worker_name, total_workers_alive))
+            print(worker_stats)
+
+            if total_workers_alive == 0:
+                print("All workers have finished execution. Exiting YamlPipelineExecutor.")
+                break
+
+            for worker_name in to_del:
+                del self._workers[worker_name]
+
+            queue_stats = []
+            for queue_name, queue in self._queues.items():
+                queue_stats.append((queue_name, queue.qsize()))
+            print(queue_stats)
+
+            time.sleep(5)
