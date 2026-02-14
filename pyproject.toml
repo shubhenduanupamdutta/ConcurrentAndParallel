@@ -42,6 +42,7 @@ unfixable = ["F401"]
 members = [
     "threading-tutorial",
     "cur_price_tracker",
+    "multiprocessing_tutorial",
 ]
 
 [dependency-groups]
