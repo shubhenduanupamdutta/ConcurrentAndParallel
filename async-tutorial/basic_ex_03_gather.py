@@ -6,6 +6,7 @@ async def async_sleep(process_index: int) -> None:
     await asyncio.sleep(5)
     print(f"After sleeping... {process_index}")
 
+
 async def print_hello() -> None:
     print("Hello world!")
 
@@ -14,7 +15,14 @@ async def print_hello() -> None:
 
 
 async def main() -> None:
-    await asyncio.gather(async_sleep(1), async_sleep(2), print_hello())
+    try:
+        await asyncio.gather(
+            asyncio.wait_for(async_sleep(1), timeout=5),
+            async_sleep(2),
+            print_hello(),
+        )
+    except TimeoutError:
+        print("A task timed out")
 
 
 if __name__ == "__main__":
