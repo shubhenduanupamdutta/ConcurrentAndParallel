@@ -43,6 +43,7 @@ members = [
     "threading-tutorial",
     "cur_price_tracker",
     "multiprocessing_tutorial",
+    "async-tutorial",
 ]
 
 [dependency-groups]

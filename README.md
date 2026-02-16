@@ -60,3 +60,13 @@ docker compose -f compose.yaml down
 ```
 
 `-d` flag runs the container in detached mode, allowing you to continue using the terminal for other commands while the container is running. The `--build` flag forces a rebuild of the Docker image, ensuring that any changes to the Dockerfile or dependencies are included in the new image.
+
+---
+
+## Difference between Asyncio and Threading/Multiprocessing
+
+---
+
+- **Threading/Multiprocessing**: These approaches involve creating multiple threads or processes that can run concurrently. They are suitable for CPU-bound tasks (multiprocessing) and I/O-bound tasks (threading). However, they can be more complex to manage due to issues like race conditions and deadlocks.
+
+- **Asyncio**: This is a single-threaded, single-process approach to concurrency that uses cooperative multitasking. It is particularly efficient for I/O-bound tasks, as it allows tasks to yield control when they are waiting for I/O operations to complete. However, it may not be suitable for CPU-bound tasks, as it does not take advantage of multiple CPU cores.
